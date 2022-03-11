@@ -30,7 +30,7 @@
 
 ## Running the broker.
 
-"""
+```typescript
 import { Broker, BrokerConfig } from "@jamesgopsill/bam-living-lab-server"
 
 const config: BrokerConfig = {
@@ -43,7 +43,7 @@ const config: BrokerConfig = {
 const broker = new Broker(config)
 
 broker.start()
-"""
+```
 
 ## Contributing
 

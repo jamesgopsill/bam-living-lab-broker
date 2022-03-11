@@ -9,11 +9,16 @@
 
 ## What are we creating?
 
-![](figs/living-lab.png)
+**[TODO]**
+
+![](https://github.com/jamesgopsill/bam-living-lab-broker/blob/main/figs/arch.png)
 
 ## How are we doing it?
 
-![](figs/arch.png)
+
+**[TODO]**
+
+![](https://github.com/jamesgopsill/bam-living-lab-broker/blob/main/figs/living-lab.png)
 
 - [Ultimaker Client](https://github.com/jamesgopsill/ultimaker-client)
 - [Prusa Client](https://github.com/jamesgopsill/prusa-client)
@@ -21,19 +26,24 @@
 
 ## The role of the broker.
 
+**[TODO]**
 
 ## Running the broker.
 
-`.env`
+"""
+import { Broker, BrokerConfig } from "@jamesgopsill/bam-living-lab-server"
 
-```
-BROKER_API_KEY=string
-BROKER_ACCESS_LOGS_KEY=string
-BROKER_LOG_FILE_PATH=string
-BROKER_LOG=bool
-BROKER_ACCESS_LOG_KEY=string
-BROKER_DEBUG=bool
-```
+const config: BrokerConfig = {
+	logFolderPath: "",
+	accessLogsKey: "",
+	socketKey: "",
+	debug: false
+}
+
+const broker = new Broker(config)
+
+broker.start()
+"""
 
 ## Contributing
 
@@ -43,6 +53,6 @@ We would love to have additional contributors to the project to help us maintain
 
 The project has been supported by the [EPSRC-funded Brokering Additive Manufacturing project (EP/V05113X/1)](https://gow.epsrc.ukri.org/NGBOViewGrant.aspx?GrantRef=EP/V05113X/1). More details on the project can be found at the [Design Manufacturing Futures Lab](https://dmf-lab.co.uk/) website.
 
-To donate and provide continued support, please go to **[TODO]**.
+If you like this project, please consider sponsoring the developers so they can continue to maintain and improve the package.
 
 ## Publications

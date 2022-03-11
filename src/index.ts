@@ -1,5 +1,5 @@
 import express, { Express } from "express"
-import { appendFile, existsSync, writeFileSync } from "fs"
+import { appendFile, existsSync, mkdirSync, writeFileSync } from "fs"
 import { createServer, Server as HttpServer } from "http"
 import { Server as SocketServer, Socket } from "socket.io"
 import { v4 as uuidv4 } from "uuid"
@@ -11,21 +11,53 @@ import {
 	SocketBook,
 } from "./interfaces"
 
-export class Broker {
-	accessLogsKey = ""
-	logFolderPath = ""
-	debug: boolean = false
-	socketBook: SocketBook = {}
-	socketKey: string
-	sessionUuid: string = uuidv4()
+export * from "./interfaces"
 
+export class Broker {
+	/**
+	 * A unique string that has to be provided in the header of a logs request to access the log files.
+	 */
+	accessLogsKey = ""
+	/**
+	 * The path to the folder where the log files will be stored.
+	 */
+	logFolderPath = ""
+	/**
+	 * Enable debug logging to the terminal.
+	 */
+	debug: boolean = false
+	/**
+	 * The address book for all the connected sockets.
+	 */
+	socketBook: SocketBook = {}
+	/**
+	 * The auth token that the machine and job agents need to provide to access the service.
+	 */
+	socketKey: string
+	/**
+	 * Creates a unique session id for each instance of the broker so we can track different sessions in the log.
+	 */
+	sessionUuid: string = uuidv4()
+	/**
+	 * The express server for log access
+	 */
 	app: Express = express()
+	/**
+	 * The http server
+	 */
 	httpServer: HttpServer = createServer(this.app)
+	/**
+	 * The socket server for brokering the connections between machines and jobs.
+	 */
 	io: SocketServer = new SocketServer(this.httpServer, {
 		path: "/socket/",
 		maxHttpBufferSize: 1e8, // 100MB
 	})
 
+	/**
+	 * Constructs an instance of the broker.
+	 * @param config The parmeters required to configure the broker.
+	 */
 	constructor(config: BrokerConfig) {
 		this.accessLogsKey = config.accessLogsKey
 		this.logFolderPath = config.logFolderPath
@@ -39,24 +71,35 @@ export class Broker {
 		this.configureIo()
 	}
 
+	/**
+	 * Starts the server.
+	 */
 	start() {
 		this.appendToBrokerLog(`broker-starting`)
 		this.httpServer.listen(3000)
 	}
 
+	/**
+	 * Stops the server
+	 */
 	stop() {
 		this.appendToBrokerLog(`broker-stopping`)
 		this.io.close()
 		this.httpServer.close()
 	}
 
-	// Confgures the logging functionality of the broker.
+	/**
+	 * Configures the logging functionality of the broker.
+	 */
 	configureExpress() {
 		// check if the files exist
 		const logFnames = ["broker.log", "messaging.log", "messaging-no-gcode.log"]
 		for (const fname of logFnames) {
 			const fullPath = `${this.logFolderPath}/${fname}`
 			if (!existsSync(fullPath)) {
+				if (!existsSync(this.logFolderPath)) {
+					mkdirSync(this.logFolderPath)
+				}
 				writeFileSync(fullPath, "")
 			}
 		}
@@ -89,6 +132,9 @@ export class Broker {
 		}
 	}
 
+	/**
+	 * Configures socket.io for accepting connections.
+	 */
 	configureIo() {
 		if (this.debug) console.log(`configuring-io`)
 
@@ -100,12 +146,16 @@ export class Broker {
 			const token = socket.handshake.auth.token
 			if (token != this.socketKey) {
 				const err = new Error("Not authorised")
+				this.appendToBrokerLog(`socket-not-authorised: ${socket.id}`)
 				next(err)
 			}
 			next()
 		})
 	}
 
+	/**
+	 * Configures an incoming socket to broker connections to other sockets.
+	 */
 	configureSocket(socket: Socket) {
 		if (this.debug) console.log(`new-connection: ${socket.id}`)
 		this.appendToBrokerLog(`new-connection: ${socket.id}`)
@@ -145,6 +195,10 @@ export class Broker {
 		})
 	}
 
+	/**
+	 * Append to the broker log.
+	 * @param msg
+	 */
 	appendToBrokerLog(msg: string) {
 		const path = `${this.logFolderPath}/broker.log`
 		const entry: BrokerLogEntry = {
@@ -157,6 +211,10 @@ export class Broker {
 		})
 	}
 
+	/**
+	 * Append to the messaging log both with and without gcode.
+	 * @param msg
+	 */
 	appendToMessagingLog(msg: Message) {
 		const messagingFilePath = `${this.logFolderPath}/messaging.log`
 		let entry: MessagingLogEntry = {

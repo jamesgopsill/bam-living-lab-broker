@@ -4,5 +4,6 @@
 		"rootDir": "src",
 		"incremental": false,
 		"esModuleInterop": true
-	}
+	},
+	"include": ["src/"]
 }

@@ -23,7 +23,7 @@
 		"start": "ts-node src/index.ts",
 		"build": "tsc",
 		"format": "prettier --write src/**/*",
-		"test": "jest",
+		"test": "jest --runInBand",
 		"docs": "typedoc",
 		"pre-add": "yarn format && yarn docs && node utils/clean-dist.js && yarn tsc && node utils/crlf-to-lf.js"
 	},

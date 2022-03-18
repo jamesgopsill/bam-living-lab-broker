@@ -6,7 +6,6 @@ import { v4 as uuidv4 } from "uuid"
 import {
 	BrokerConfig,
 	BrokerLogEntry,
-	Message,
 	MessagingLogEntry,
 	SocketBook,
 } from "./interfaces"
@@ -142,13 +141,36 @@ export class Broker {
 			this.configureSocket(socket)
 		})
 
+		// Auth check
 		this.io.use((socket, next) => {
+			if (!socket.handshake.auth.token) {
+				const err = new Error("No authorisation token provided")
+				this.appendToBrokerLog(`no-authorisation-token-provided: ${socket.id}`)
+				next(err)
+			}
+
+			if (!socket.handshake.headers["agent-type"]) {
+				const err = new Error("No agent type provided")
+				this.appendToBrokerLog(`no-agent-type-provided: ${socket.id}`)
+				next(err)
+			}
+
 			const token = socket.handshake.auth.token
 			if (token != this.socketKey) {
 				const err = new Error("Not authorised")
 				this.appendToBrokerLog(`socket-not-authorised: ${socket.id}`)
 				next(err)
 			}
+
+			// @ts-ignore
+			if (
+				!["machine", "job"].includes(socket.handshake.headers["agent-type"])
+			) {
+				const err = new Error("Wrong agent type")
+				this.appendToBrokerLog(`wrong-agent-type: ${socket.id}`)
+				next(err)
+			}
+
 			next()
 		})
 	}
@@ -161,7 +183,14 @@ export class Broker {
 		this.appendToBrokerLog(`new-connection: ${socket.id}`)
 
 		// Add socket to the address book
-		this.socketBook[socket.id] = socket
+		if (typeof socket.handshake.headers["agent-type"] == "string") {
+			this.socketBook[socket.id] = {
+				socket: socket,
+				type: socket.handshake.headers["agent-type"],
+			}
+		} else {
+			// TODO error
+		}
 
 		socket.on("disconnect", () => {
 			if (this.debug) console.log(`disconnected: ${socket.id}`)
@@ -170,29 +199,76 @@ export class Broker {
 			delete this.socketBook[socket.id]
 		})
 
-		socket.on("join-the-machine-room", () => {
-			if (this.debug) console.log(`joined-machine-room: ${socket.id}`)
-			this.appendToBrokerLog(`joined-machine-room: ${socket.id}`)
-			socket.join("machine-room")
+		// Pass-through communications
+		socket.on("p2p", (msg: any) => {
+			if (this.debug) console.log(`p2p: ${JSON.stringify(msg)}`)
+			this.appendToMessagingLog(msg)
+
+			const errMsg = this.validateMsg(msg)
+			if (errMsg) {
+				socket.emit("msg-error", errMsg)
+				return
+			}
+
+			// 2. direct the message
+			if (!(msg.toId in this.socketBook)) {
+				if (this.debug) console.log(`p2p: no agent with this id`)
+				socket.emit("msg-error", "No agent with this id")
+				return
+			}
+
+			// 3. All good, send the message on.
+			this.socketBook[msg.toId].socket.emit("p2p", msg)
 		})
 
-		// Pass-through communications
-		socket.on("p2p-comm", (msg: Message) => {
-			if (this.debug) console.log(`p2p-comm: ${msg.header}`)
-			if (msg.header && msg.header.toId) {
-				this.appendToMessagingLog(msg)
-				// Check if the key is in the socketBook
-				if (msg.header.toId in this.socketBook) {
-					// forward the message
-					this.socketBook[msg.header.toId].emit("p2p-comm", msg)
-				} else {
-					// [TODO] return an error
+		socket.on("all-machines", (msg: any) => {
+			if (this.debug) console.log(`all-machines: ${JSON.stringify(msg)}`)
+			this.appendToMessagingLog(msg)
+
+			const errMsg = this.validateMsg(msg)
+			if (errMsg) {
+				socket.emit("msg-error", errMsg)
+				return
+			}
+
+			for (const [_, value] of Object.entries(this.socketBook)) {
+				// make sure it is the right type and not itself.
+				if (value.type == "machine" && value.socket.id != socket.id) {
+					value.socket.emit("all-machines", msg)
 				}
-			} else {
-				console.log("malformed data")
-				// [TODO] return error
 			}
 		})
+
+		socket.on("all-jobs", (msg: any) => {
+			if (this.debug) console.log(`all-jobs: ${JSON.stringify(msg)}`)
+			this.appendToMessagingLog(msg)
+
+			const errMsg = this.validateMsg(msg)
+			if (errMsg) {
+				socket.emit("msg-error", errMsg)
+				return
+			}
+
+			for (const [_, value] of Object.entries(this.socketBook)) {
+				if (value.type == "job" && value.socket.id != socket.id) {
+					value.socket.emit("all-jobs", msg)
+				}
+			}
+		})
+	}
+
+	validateMsg(msg: any): string {
+		// 1. validate message form
+		if (
+			msg["fromId"] == undefined ||
+			msg["toId"] == undefined ||
+			msg["subject"] == undefined ||
+			msg["body"] == undefined
+		) {
+			if (this.debug) console.log(`validateMsg: malformed message`)
+			return "Malformed message"
+		}
+		return ""
 	}
 
 	/**
@@ -215,7 +291,7 @@ export class Broker {
 	 * Append to the messaging log both with and without gcode.
 	 * @param msg
 	 */
-	appendToMessagingLog(msg: Message) {
+	appendToMessagingLog(msg: any) {
 		const messagingFilePath = `${this.logFolderPath}/messaging.log`
 		let entry: MessagingLogEntry = {
 			sessionUuid: this.sessionUuid,

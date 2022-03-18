@@ -14,7 +14,10 @@ export interface BrokerConfig {
  * The address book of all the machine and job agent sockets.
  */
 export interface SocketBook {
-	[key: string]: Socket
+	[key: string]: {
+		socket: Socket
+		type: string
+	}
 }
 
 /**
@@ -39,10 +42,8 @@ export interface MessagingLogEntry {
  * The format of a message coming to the broker.
  */
 export interface Message {
-	header: {
-		fromId: string
-		toId: string
-		subject: string
-	}
+	fromId: string
+	toId: string
+	subject: string
 	body: any
 }

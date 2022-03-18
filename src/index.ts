@@ -6,6 +6,7 @@ import { v4 as uuidv4 } from "uuid"
 import {
 	BrokerConfig,
 	BrokerLogEntry,
+	MessageProtocols,
 	MessagingLogEntry,
 	SocketBook,
 } from "./interfaces"
@@ -162,8 +163,8 @@ export class Broker {
 				next(err)
 			}
 
-			// @ts-ignore
 			if (
+				typeof socket.handshake.headers["agent-type"] == "string" &&
 				!["machine", "job"].includes(socket.handshake.headers["agent-type"])
 			) {
 				const err = new Error("Wrong agent type")
@@ -189,7 +190,7 @@ export class Broker {
 				type: socket.handshake.headers["agent-type"],
 			}
 		} else {
-			// TODO error
+			// TODO error - We should not get here as it should be caught in the auth.
 		}
 
 		socket.on("disconnect", () => {
@@ -199,62 +200,64 @@ export class Broker {
 			delete this.socketBook[socket.id]
 		})
 
-		// Pass-through communications
-		socket.on("p2p", (msg: any) => {
-			if (this.debug) console.log(`p2p: ${JSON.stringify(msg)}`)
-			this.appendToMessagingLog(msg)
+		// Protocols
+		socket.on(MessageProtocols.DIRECT, (msg: any) =>
+			this.handleDirectMsg(socket, msg)
+		)
 
-			const errMsg = this.validateMsg(msg)
-			if (errMsg) {
-				socket.emit("msg-error", errMsg)
-				return
+		socket.on(MessageProtocols.ALL_MACHINES, (msg: any) =>
+			this.handleAllMessage(socket, msg, MessageProtocols.ALL_MACHINES)
+		)
+
+		socket.on(MessageProtocols.ALL_JOBS, (msg: any) =>
+			this.handleAllMessage(socket, msg, MessageProtocols.ALL_JOBS)
+		)
+	}
+
+	handleDirectMsg(originatingSocket: Socket, msg: any) {
+		if (this.debug)
+			console.log(`${MessageProtocols.DIRECT}: ${JSON.stringify(msg)}`)
+		this.appendToMessagingLog(msg)
+
+		const errMsg = this.validateMsg(msg)
+		if (errMsg) {
+			originatingSocket.emit(MessageProtocols.MESSAGE_ERROR, errMsg)
+			return
+		}
+
+		if (!(msg.toId in this.socketBook)) {
+			if (this.debug) console.log(`p2p: no agent with this id`)
+			originatingSocket.emit(
+				MessageProtocols.MESSAGE_ERROR,
+				"No agent with this id"
+			)
+			return
+		}
+
+		this.socketBook[msg.toId].socket.emit(MessageProtocols.DIRECT, msg)
+		return
+	}
+
+	handleAllMessage(
+		originatingSocket: Socket,
+		msg: any,
+		protocol: MessageProtocols.ALL_JOBS | MessageProtocols.ALL_MACHINES
+	) {
+		if (this.debug) console.log(`${protocol}: ${JSON.stringify(msg)}`)
+		this.appendToMessagingLog(msg)
+
+		const errMsg = this.validateMsg(msg)
+		if (errMsg) {
+			originatingSocket.emit(MessageProtocols.MESSAGE_ERROR, errMsg)
+			return
+		}
+
+		for (const [_, value] of Object.entries(this.socketBook)) {
+			// make sure it is the right type and not itself.
+			if (value.type == protocol && value.socket.id != originatingSocket.id) {
+				value.socket.emit(protocol, msg)
 			}
-
-			// 2. direct the message
-			if (!(msg.toId in this.socketBook)) {
-				if (this.debug) console.log(`p2p: no agent with this id`)
-				socket.emit("msg-error", "No agent with this id")
-				return
-			}
-
-			// 3. All good, send the message on.
-			this.socketBook[msg.toId].socket.emit("p2p", msg)
-		})
-
-		socket.on("all-machines", (msg: any) => {
-			if (this.debug) console.log(`all-machines: ${JSON.stringify(msg)}`)
-			this.appendToMessagingLog(msg)
-
-			const errMsg = this.validateMsg(msg)
-			if (errMsg) {
-				socket.emit("msg-error", errMsg)
-				return
-			}
-
-			for (const [_, value] of Object.entries(this.socketBook)) {
-				// make sure it is the right type and not itself.
-				if (value.type == "machine" && value.socket.id != socket.id) {
-					value.socket.emit("all-machines", msg)
-				}
-			}
-		})
-
-		socket.on("all-jobs", (msg: any) => {
-			if (this.debug) console.log(`all-jobs: ${JSON.stringify(msg)}`)
-			this.appendToMessagingLog(msg)
-
-			const errMsg = this.validateMsg(msg)
-			if (errMsg) {
-				socket.emit("msg-error", errMsg)
-				return
-			}
-
-			for (const [_, value] of Object.entries(this.socketBook)) {
-				if (value.type == "job" && value.socket.id != socket.id) {
-					value.socket.emit("all-jobs", msg)
-				}
-			}
-		})
+		}
 	}
 
 	validateMsg(msg: any): string {

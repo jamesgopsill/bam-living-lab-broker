@@ -47,3 +47,13 @@ export interface Message {
 	subject: string
 	body: any
 }
+
+/**
+ * The protocols that an agent can submit and receive messages on.
+ */
+export enum MessageProtocols {
+	DIRECT = "direct",
+	ALL_MACHINES = "all-machines",
+	ALL_JOBS = "all-jobs",
+	MESSAGE_ERROR = "message-error",
+}

@@ -23,6 +23,7 @@ var fs_1 = require("fs");
 var http_1 = require("http");
 var socket_io_1 = require("socket.io");
 var uuid_1 = require("uuid");
+var interfaces_1 = require("./interfaces");
 __exportStar(require("./interfaces"), exports);
 var Broker = /** @class */ (function () {
     /**
@@ -139,11 +140,28 @@ var Broker = /** @class */ (function () {
         this.io.on("connection", function (socket) {
             _this.configureSocket(socket);
         });
+        // Auth check
         this.io.use(function (socket, next) {
+            if (!socket.handshake.auth.token) {
+                var err = new Error("No authorisation token provided");
+                _this.appendToBrokerLog("no-authorisation-token-provided: ".concat(socket.id));
+                next(err);
+            }
+            if (!socket.handshake.headers["agent-type"]) {
+                var err = new Error("No agent type provided");
+                _this.appendToBrokerLog("no-agent-type-provided: ".concat(socket.id));
+                next(err);
+            }
             var token = socket.handshake.auth.token;
             if (token != _this.socketKey) {
                 var err = new Error("Not authorised");
                 _this.appendToBrokerLog("socket-not-authorised: ".concat(socket.id));
+                next(err);
+            }
+            if (typeof socket.handshake.headers["agent-type"] == "string" &&
+                !["machine", "job"].includes(socket.handshake.headers["agent-type"])) {
+                var err = new Error("Wrong agent type");
+                _this.appendToBrokerLog("wrong-agent-type: ".concat(socket.id));
                 next(err);
             }
             next();
@@ -158,39 +176,78 @@ var Broker = /** @class */ (function () {
             console.log("new-connection: ".concat(socket.id));
         this.appendToBrokerLog("new-connection: ".concat(socket.id));
         // Add socket to the address book
-        this.socketBook[socket.id] = socket;
+        if (typeof socket.handshake.headers["agent-type"] == "string") {
+            this.socketBook[socket.id] = {
+                socket: socket,
+                type: socket.handshake.headers["agent-type"]
+            };
+        }
+        else {
+            // TODO error - We should not get here as it should be caught in the auth.
+        }
         socket.on("disconnect", function () {
             if (_this.debug)
                 console.log("disconnected: ".concat(socket.id));
             _this.appendToBrokerLog("disconnected: ".concat(socket.id));
             delete _this.socketBook[socket.id];
         });
-        socket.on("join-the-machine-room", function () {
-            if (_this.debug)
-                console.log("joined-machine-room: ".concat(socket.id));
-            _this.appendToBrokerLog("joined-machine-room: ".concat(socket.id));
-            socket.join("machine-room");
+        // Protocols
+        socket.on(interfaces_1.MessageProtocols.DIRECT, function (msg) {
+            return _this.handleDirectMsg(socket, msg);
         });
-        // Pass-through communications
-        socket.on("p2p-comm", function (msg) {
-            if (_this.debug)
-                console.log("p2p-comm: ".concat(msg.header));
-            if (msg.header && msg.header.toId) {
-                _this.appendToMessagingLog(msg);
-                // Check if the key is in the socketBook
-                if (msg.header.toId in _this.socketBook) {
-                    // forward the message
-                    _this.socketBook[msg.header.toId].emit("p2p-comm", msg);
-                }
-                else {
-                    // [TODO] return an error
-                }
-            }
-            else {
-                console.log("malformed data");
-                // [TODO] return error
-            }
+        socket.on(interfaces_1.MessageProtocols.ALL_MACHINES, function (msg) {
+            return _this.handleAllMessage(socket, msg, interfaces_1.MessageProtocols.ALL_MACHINES);
         });
+        socket.on(interfaces_1.MessageProtocols.ALL_JOBS, function (msg) {
+            return _this.handleAllMessage(socket, msg, interfaces_1.MessageProtocols.ALL_JOBS);
+        });
+    };
+    Broker.prototype.handleDirectMsg = function (originatingSocket, msg) {
+        if (this.debug)
+            console.log("".concat(interfaces_1.MessageProtocols.DIRECT, ": ").concat(JSON.stringify(msg)));
+        this.appendToMessagingLog(msg);
+        var errMsg = this.validateMsg(msg);
+        if (errMsg) {
+            originatingSocket.emit(interfaces_1.MessageProtocols.MESSAGE_ERROR, errMsg);
+            return;
+        }
+        if (!(msg.toId in this.socketBook)) {
+            if (this.debug)
+                console.log("p2p: no agent with this id");
+            originatingSocket.emit(interfaces_1.MessageProtocols.MESSAGE_ERROR, "No agent with this id");
+            return;
+        }
+        this.socketBook[msg.toId].socket.emit(interfaces_1.MessageProtocols.DIRECT, msg);
+        return;
+    };
+    Broker.prototype.handleAllMessage = function (originatingSocket, msg, protocol) {
+        if (this.debug)
+            console.log("".concat(protocol, ": ").concat(JSON.stringify(msg)));
+        this.appendToMessagingLog(msg);
+        var errMsg = this.validateMsg(msg);
+        if (errMsg) {
+            originatingSocket.emit(interfaces_1.MessageProtocols.MESSAGE_ERROR, errMsg);
+            return;
+        }
+        for (var _i = 0, _a = Object.entries(this.socketBook); _i < _a.length; _i++) {
+            var _b = _a[_i], _ = _b[0], value = _b[1];
+            // make sure it is the right type and not itself.
+            if (value.type == protocol && value.socket.id != originatingSocket.id) {
+                value.socket.emit(protocol, msg);
+            }
+        }
+    };
+    Broker.prototype.validateMsg = function (msg) {
+        // 1. validate message form
+        if (msg["fromId"] == undefined ||
+            msg["toId"] == undefined ||
+            msg["subject"] == undefined ||
+            msg["body"] == undefined) {
+            if (this.debug)
+                console.log("validateMsg: malformed message");
+            return "Malformed message";
+        }
+        return "";
     };
     /**
      * Append to the broker log.

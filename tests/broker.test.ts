@@ -1,4 +1,4 @@
-import { Broker, Message } from "../src"
+import { Broker, MessageProtocols, Message } from "../src"
 import { io } from "socket.io-client"
 
 const broker = new Broker({
@@ -26,14 +26,13 @@ test(`Test socket connectionn with correct key and agent type`, async () => {
 	})
 	.on("connect", () => {
 		expect(true).toBe(true)
-		s.close()
 	})
 	.on("connect_error", (err) => {
 		expect(false).toBe(true)
-		s.close()
 	})
 
 	await wait(100)
+	s.close()
 })
 
 
@@ -49,12 +48,11 @@ test(`Test socket connection with correct key and wrong agent type`, async () =>
 	})
 	.on("connect_error", (err) => {
 		expect(true).toBe(true)
-		s.close()
 	})
 
 	await wait(100)
+	s.close()
 })
-
 
 test(`Test socket connection with invalid key`, async () => {
 	const s = io("http://localhost:3000", {
@@ -68,10 +66,10 @@ test(`Test socket connection with invalid key`, async () => {
 	})
 	.on("connect_error", (err) => {
 		expect(true).toBe(true)
-		s.close()
 	})
 
 	await wait(100)
+	s.close()
 })
 
 test(`Test malformed message content`, async () => {
@@ -85,21 +83,21 @@ test(`Test malformed message content`, async () => {
 		path: "/socket/",
 	})
 	.on("connect", async () => {
-		s.emit("p2p", {
+		s.emit(MessageProtocols.DIRECT, {
 			test: "malformed message"
 		})
 	})
 	.on("connect_error", (err) => {
 		expect(false).toBe(true)
-		s.close()
 	})
-	.on("msg-error", (errMsg: string) => {
+	.on(MessageProtocols.MESSAGE_ERROR, (errMsg: string) => {
 		expect(true).toBe(true)
-		s.close()
 	})
 
 	await wait(200)
+	s.close()
 })
+
 
 test(`Test wrong toId`, async () => {
 	const s = io("http://localhost:3000", {
@@ -118,20 +116,19 @@ test(`Test wrong toId`, async () => {
 			subject: "test-message",
 			body: {}
 		}
-		s.emit("p2p", msg)
+		s.emit(MessageProtocols.DIRECT, msg)
 	})
 	.on("connect_error", (err) => {
 		expect(false).toBe(true)
-		s.close()
 	})
-	.on("msg-error", (errMsg: string) => {
-		console.log(errMsg)
+	.on(MessageProtocols.MESSAGE_ERROR, (errMsg: string) => {
 		expect(true).toBe(true)
-		s.close()
 	})
 
 	await wait(200)
+	s.close()
 })
+
 
 test(`Test send to all machines`, async () => {
 	const job = io("http://localhost:3000", {
@@ -155,40 +152,37 @@ test(`Test send to all machines`, async () => {
 	})
 
 	job.on("connect", async () => {
+		await wait(100)
 		const msg: Message = {
 			fromId: job.id,
 			toId: "",
 			subject: "test-message-to-all-machines",
 			body: {}
 		}
-		job.emit("all-machines", msg)
+		job.emit(MessageProtocols.ALL_MACHINES, msg)
 	})
 	.on("connect_error", (err) => {
 		expect(false).toBe(true)
-		job.close()
 	})
-	.on("msg-error", (errMsg: string) => {
+	.on(MessageProtocols.MESSAGE_ERROR, (errMsg: string) => {
 		expect(false).toBe(true)
-		job.close()
 	})
 
 	machine.on("connect", async () => {})
 	.on("connect_error", (err) => {
 		expect(false).toBe(true)
-		machine.close()
 	})
-	.on("msg-error", (errMsg: string) => {
+	.on(MessageProtocols.MESSAGE_ERROR, (errMsg: string) => {
 		expect(false).toBe(true)
-		machine.close()
 	})
-	.on("all-machines", (msg) => {
+	.on(MessageProtocols.ALL_MACHINES, (msg: Message) => {
 		console.log(msg)
 		expect(true).toBe(true)
-		job.close()
-		machine.close()
 	})
 
 	await wait(200)
+	job.close()
+	machine.close()
 })
 
 test(`Test send to all jobs`, async () => {
@@ -214,44 +208,41 @@ test(`Test send to all jobs`, async () => {
 	})
 
 	machine.on("connect", async () => {
+		await wait(100)
 		const msg: Message = {
 			fromId: machine.id,
 			toId: "",
 			subject: "test-message-to-all-jobs",
 			body: {}
 		}
-		machine.emit("all-jobs", msg)
+		machine.emit(MessageProtocols.ALL_JOBS, msg)
 	})
 	.on("connect_error", (err) => {
 		expect(false).toBe(true)
-		//machine.close()
+		
 	})
-	.on("msg-error", (errMsg: string) => {
-		console.log("machine msg-error:", errMsg)
-		// expect(false).toBe(true)
-		//machine.close()
+	.on(MessageProtocols.MESSAGE_ERROR, (errMsg: string) => {
+		console.log(MessageProtocols.MESSAGE_ERROR, ":", errMsg)
+		expect(false).toBe(true)
 	})
 
 
 	job.on("connect", async () => {})
 	.on("connect_error", (err) => {
 		expect(false).toBe(true)
-		//job.close()
 	})
-	.on("msg-error", (errMsg: string) => {
+	.on(MessageProtocols.MESSAGE_ERROR, (errMsg: string) => {
 		expect(false).toBe(true)
-		//job.close()
 	})
-	.on("all-jobs", (msg) => {
+	.on(MessageProtocols.ALL_JOBS, (msg) => {
 		console.log(msg)
 		expect(true).toBe(true)
-		job.close()
-		machine.close()
 	})
 
 	await wait(200)
+	job.close()
+	machine.close()
 })
-
 
 test(`Test send direct message`, async () => {
 
@@ -279,14 +270,13 @@ test(`Test send direct message`, async () => {
 	.on("connect_error", (err) => {
 		expect(false).toBe(true)
 	})
-	.on("msg-error", (errMsg: string) => {
+	.on(MessageProtocols.MESSAGE_ERROR, (errMsg: string) => {
+		console.log(errMsg)
 		expect(false).toBe(true)
 	})
-	.on("p2p", (msg) => {
+	.on(MessageProtocols.DIRECT, (msg) => {
 		console.log(msg)
 		expect(true).toBe(true)
-		job.close()
-		machine.close()
 	})
 
 	job.on("connect", async () => {
@@ -296,19 +286,20 @@ test(`Test send direct message`, async () => {
 			subject: "test-message-to-a-specific-machine",
 			body: {}
 		}
-		job.emit("p2p", msg)
+		job.emit(MessageProtocols.DIRECT, msg)
 	})
 	.on("connect_error", (err) => {
 		expect(false).toBe(true)
 	})
-	.on("msg-error", (errMsg: string) => {
+	.on(MessageProtocols.MESSAGE_ERROR, (errMsg: string) => {
 		console.log("job error:", errMsg)
 		expect(false).toBe(true)
 	})
 
 	await wait(200)
+	job.close()
+	machine.close()
 })
-
 
 afterAll(() => {
 	broker.stop()

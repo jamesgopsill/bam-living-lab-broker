@@ -20,7 +20,8 @@ test(`Test socket connectionn with correct key and agent type`, async () => {
 			token: "socket-key",
 		},
 		extraHeaders: {
-			"agent-type": "machine"
+			"agent-type": "machine",
+			"group-key": "test"
 		},
 		path: "/socket/",
 	})
@@ -35,6 +36,27 @@ test(`Test socket connectionn with correct key and agent type`, async () => {
 	s.close()
 })
 
+test(`Test socket connectionn with correct key and agent type and no group key`, async () => {
+	const s = io("http://localhost:3000", {
+		auth: {
+			token: "socket-key",
+		},
+		extraHeaders: {
+			"agent-type": "machine",
+		},
+		path: "/socket/",
+	})
+	.on("connect", () => {
+		expect(false).toBe(true)
+	})
+	.on("connect_error", (err) => {
+		expect(true).toBe(true)
+	})
+
+	await wait(100)
+	s.close()
+})
+
 
 test(`Test socket connection with correct key and wrong agent type`, async () => {
 	const s = io("http://localhost:3000", {
@@ -42,7 +64,8 @@ test(`Test socket connection with correct key and wrong agent type`, async () =>
 			token: "socket-key",
 		},
 		extraHeaders: {
-			"agent-type": "random"
+			"agent-type": "random",
+			"group-key": "test"
 		},
 		path: "/socket/",
 	})
@@ -60,7 +83,8 @@ test(`Test socket connection with invalid key`, async () => {
 			token: "wrong-key",
 		},
 		extraHeaders: {
-			"agent-type": "random"
+			"agent-type": "random",
+			"group-key": "test"
 		},
 		path: "/socket/",
 	})
@@ -78,7 +102,8 @@ test(`Test malformed message content`, async () => {
 			token: "socket-key",
 		},
 		extraHeaders: {
-			"agent-type": "machine"
+			"agent-type": "machine",
+			"group-key": "test"
 		},
 		path: "/socket/",
 	})
@@ -105,7 +130,8 @@ test(`Test wrong toId`, async () => {
 			token: "socket-key",
 		},
 		extraHeaders: {
-			"agent-type": "machine"
+			"agent-type": "machine",
+			"group-key": "test"
 		},
 		path: "/socket/",
 	})
@@ -135,7 +161,8 @@ test(`Test send to all machines`, async () => {
 			token: "socket-key",
 		},
 		extraHeaders: {
-			"agent-type": "job"
+			"agent-type": "job",
+			"group-key": "test"
 		},
 		path: "/socket/",
 	})
@@ -145,7 +172,8 @@ test(`Test send to all machines`, async () => {
 			token: "socket-key",
 		},
 		extraHeaders: {
-			"agent-type": "machine"
+			"agent-type": "machine",
+			"group-key": "test"
 		},
 		path: "/socket/",
 	})
@@ -190,7 +218,8 @@ test(`Test send to all jobs`, async () => {
 			token: "socket-key",
 		},
 		extraHeaders: {
-			"agent-type": "machine"
+			"agent-type": "machine",
+			"group-key": "test"
 		},
 		path: "/socket/",
 	})
@@ -201,7 +230,8 @@ test(`Test send to all jobs`, async () => {
 			token: "socket-key",
 		},
 		extraHeaders: {
-			"agent-type": "job"
+			"agent-type": "job",
+			"group-key": "test"
 		},
 		path: "/socket/",
 	})
@@ -250,7 +280,8 @@ test(`Test send direct message`, async () => {
 			token: "socket-key",
 		},
 		extraHeaders: {
-			"agent-type": "machine"
+			"agent-type": "machine",
+			"group-key": "test"
 		},
 		path: "/socket/",
 	})
@@ -260,7 +291,8 @@ test(`Test send direct message`, async () => {
 			token: "socket-key",
 		},
 		extraHeaders: {
-			"agent-type": "job"
+			"agent-type": "job",
+			"group-key": "test"
 		},
 		path: "/socket/",
 	})
@@ -279,6 +311,7 @@ test(`Test send direct message`, async () => {
 	})
 
 	job.on("connect", async () => {
+		await wait(100) // Give time for all the connections to be made before sending messages.
 		const msg: Message = {
 			fromId: job.id,
 			toId: machine.id,

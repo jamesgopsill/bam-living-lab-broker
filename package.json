@@ -25,7 +25,8 @@
 		"format": "prettier --write src/**/*",
 		"test": "jest --runInBand",
 		"docs": "typedoc",
-		"pre-add": "yarn format && yarn docs && node utils/clean-dist.js && yarn tsc && node utils/crlf-to-lf.js"
+		"pre-add": "yarn format && yarn docs && node utils/clean-dist.js && yarn tsc && node utils/crlf-to-lf.js",
+		"example": "ts-node example/index.ts"
 	},
 	"devDependencies": {
 		"@types/express": "^4.17.13",

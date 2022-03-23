@@ -80,6 +80,7 @@ export class Broker {
 	start() {
 		this.appendToBrokerLog(`broker-starting`)
 		this.httpServer.listen(3000)
+		console.log(`|- Serving on http://localhost:3000`)
 	}
 
 	/**
@@ -139,7 +140,7 @@ export class Broker {
 	 * Configures socket.io for accepting connections.
 	 */
 	configureIo() {
-		if (this.debug) console.log(`configuring-io`)
+		if (this.debug) console.log(`|- configuring-io`)
 
 		this.io.on("connection", (socket) => {
 			this.configureSocket(socket)
@@ -156,6 +157,12 @@ export class Broker {
 			if (!socket.handshake.headers["agent-type"]) {
 				const err = new Error("No agent type provided")
 				this.appendToBrokerLog(`no-agent-type-provided: ${socket.id}`)
+				next(err)
+			}
+
+			if (!socket.handshake.headers["group-key"]) {
+				const err = new Error("No group key provided")
+				this.appendToBrokerLog(`no-group-key-provided: ${socket.id}`)
 				next(err)
 			}
 
@@ -187,10 +194,14 @@ export class Broker {
 		this.appendToBrokerLog(`new-connection: ${socket.id}`)
 
 		// Add socket to the address book
-		if (typeof socket.handshake.headers["agent-type"] == "string") {
+		if (
+			typeof socket.handshake.headers["agent-type"] == "string" &&
+			typeof socket.handshake.headers["group-key"] == "string"
+		) {
 			this.socketBook[socket.id] = {
 				socket: socket,
 				type: socket.handshake.headers["agent-type"],
+				group: socket.handshake.headers["group-key"],
 			}
 		} else {
 			// TODO error - We should not get here as it should be caught in the auth.
@@ -215,12 +226,38 @@ export class Broker {
 		socket.on(MessageProtocols.ALL_JOBS, (msg: any) =>
 			this.handleAllMessage(socket, msg, MessageProtocols.ALL_JOBS)
 		)
+
+		socket.on(MessageProtocols.STATS, () => {
+			this.handleStats(socket)
+		})
+	}
+
+	handleStats(originatingSocket: Socket) {
+		let group = ""
+		if (typeof originatingSocket.handshake.headers["group-key"] == "string") {
+			group = originatingSocket.handshake.headers["group-key"]
+		}
+		let stats = {
+			activeJobs: 0,
+			activeMachines: 0,
+		}
+		for (const [_, value] of Object.entries(this.socketBook)) {
+			if (value.group == group) {
+				if (value.type == "job") {
+					stats.activeJobs += 1
+				}
+				if (value.type == "machine") {
+					stats.activeMachines += 1
+				}
+			}
+		}
+		originatingSocket.emit(MessageProtocols.STATS, stats)
 	}
 
 	handleDirectMsg(originatingSocket: Socket, msg: any) {
-		if (this.debug)
+		if (this.debug) {
 			console.log(`${MessageProtocols.DIRECT}: ${JSON.stringify(msg)}`)
-		this.appendToMessagingLog(msg)
+		}
 
 		const errMsg = this.validateMsg(msg)
 		if (errMsg) {
@@ -229,15 +266,17 @@ export class Broker {
 		}
 
 		if (!(msg.toId in this.socketBook)) {
-			if (this.debug) console.log(`p2p: no agent with this id`)
+			if (this.debug)
+				console.log(`${MessageProtocols.DIRECT}: no agent with this id`)
 			originatingSocket.emit(
 				MessageProtocols.MESSAGE_ERROR,
 				"No agent with this id"
 			)
 			return
 		}
-
 		this.socketBook[msg.toId].socket.emit(MessageProtocols.DIRECT, msg)
+
+		this.appendToMessagingLog(msg, originatingSocket)
 		return
 	}
 
@@ -247,7 +286,6 @@ export class Broker {
 		protocol: MessageProtocols.ALL_JOBS | MessageProtocols.ALL_MACHINES
 	) {
 		if (this.debug) console.log(`${protocol}: ${JSON.stringify(msg)}`)
-		this.appendToMessagingLog(msg)
 
 		const errMsg = this.validateMsg(msg)
 		if (errMsg) {
@@ -255,12 +293,28 @@ export class Broker {
 			return
 		}
 
+		let type = ""
+		if (protocol == MessageProtocols.ALL_JOBS) {
+			type = "job"
+		}
+		if (protocol == MessageProtocols.ALL_MACHINES) {
+			type = "machine"
+		}
+		const group = originatingSocket.handshake.headers["group-key"]
+
 		for (const [_, value] of Object.entries(this.socketBook)) {
 			// make sure it is the right type and not itself.
-			if (value.type == protocol && value.socket.id != originatingSocket.id) {
+			if (
+				value.type == type &&
+				value.socket.id != originatingSocket.id &&
+				value.group == group
+			) {
+				console.log("Sending on the message")
 				value.socket.emit(protocol, msg)
 			}
 		}
+
+		this.appendToMessagingLog(msg, originatingSocket)
 	}
 
 	validateMsg(msg: any): string {
@@ -297,10 +351,23 @@ export class Broker {
 	 * Append to the messaging log both with and without gcode.
 	 * @param msg
 	 */
-	appendToMessagingLog(msg: any) {
+	appendToMessagingLog(msg: any, socket: Socket) {
 		const messagingFilePath = `${this.logFolderPath}/messaging.log`
+
+		let groupKey = ""
+		if (typeof socket.handshake.headers["group-key"] == "string") {
+			groupKey = socket.handshake.headers["group-key"]
+		}
+
+		let agentType = ""
+		if (typeof socket.handshake.headers["agent-type"] == "string") {
+			agentType = socket.handshake.headers["agent-type"]
+		}
+
 		let entry: MessagingLogEntry = {
 			sessionUuid: this.sessionUuid,
+			groupKey: groupKey,
+			fromAgentType: agentType,
 			msg: msg,
 			date: new Date(),
 		}

@@ -17,6 +17,7 @@ export interface SocketBook {
 	[key: string]: {
 		socket: Socket
 		type: string
+		group: string
 	}
 }
 
@@ -35,6 +36,8 @@ export interface BrokerLogEntry {
 export interface MessagingLogEntry {
 	sessionUuid: string
 	msg: Message
+	groupKey: string
+	fromAgentType: string
 	date: Date
 }
 
@@ -53,7 +56,10 @@ export interface Message {
  */
 export enum MessageProtocols {
 	DIRECT = "direct",
-	ALL_MACHINES = "all-machines",
-	ALL_JOBS = "all-jobs",
-	MESSAGE_ERROR = "message-error",
+	ALL_MACHINES = "all_machines",
+	ALL_JOBS = "all_jobs",
+	MESSAGE_ERROR = "message_error",
+	CONNECT = "connect",
+	CONNECT_ERROR = "connect_error",
+	STATS = "stats",
 }

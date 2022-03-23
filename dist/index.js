@@ -84,6 +84,7 @@ var Broker = /** @class */ (function () {
     Broker.prototype.start = function () {
         this.appendToBrokerLog("broker-starting");
         this.httpServer.listen(3000);
+        console.log("|- Serving on http://localhost:3000");
     };
     /**
      * Stops the server
@@ -139,7 +140,7 @@ var Broker = /** @class */ (function () {
     Broker.prototype.configureIo = function () {
         var _this = this;
         if (this.debug)
-            console.log("configuring-io");
+            console.log("|- configuring-io");
         this.io.on("connection", function (socket) {
             _this.configureSocket(socket);
         });
@@ -153,6 +154,11 @@ var Broker = /** @class */ (function () {
             if (!socket.handshake.headers["agent-type"]) {
                 var err = new Error("No agent type provided");
                 _this.appendToBrokerLog("no-agent-type-provided: ".concat(socket.id));
+                next(err);
+            }
+            if (!socket.handshake.headers["group-key"]) {
+                var err = new Error("No group key provided");
+                _this.appendToBrokerLog("no-group-key-provided: ".concat(socket.id));
                 next(err);
             }
             var token = socket.handshake.auth.token;
@@ -179,10 +185,12 @@ var Broker = /** @class */ (function () {
             console.log("new-connection: ".concat(socket.id));
         this.appendToBrokerLog("new-connection: ".concat(socket.id));
         // Add socket to the address book
-        if (typeof socket.handshake.headers["agent-type"] == "string") {
+        if (typeof socket.handshake.headers["agent-type"] == "string" &&
+            typeof socket.handshake.headers["group-key"] == "string") {
             this.socketBook[socket.id] = {
                 socket: socket,
-                type: socket.handshake.headers["agent-type"]
+                type: socket.handshake.headers["agent-type"],
+                group: socket.handshake.headers["group-key"]
             };
         }
         else {
@@ -204,11 +212,36 @@ var Broker = /** @class */ (function () {
         socket.on(interfaces_1.MessageProtocols.ALL_JOBS, function (msg) {
             return _this.handleAllMessage(socket, msg, interfaces_1.MessageProtocols.ALL_JOBS);
         });
+        socket.on(interfaces_1.MessageProtocols.STATS, function () {
+            _this.handleStats(socket);
+        });
+    };
+    Broker.prototype.handleStats = function (originatingSocket) {
+        var group = "";
+        if (typeof originatingSocket.handshake.headers["group-key"] == "string") {
+            group = originatingSocket.handshake.headers["group-key"];
+        }
+        var stats = {
+            activeJobs: 0,
+            activeMachines: 0
+        };
+        for (var _i = 0, _a = Object.entries(this.socketBook); _i < _a.length; _i++) {
+            var _b = _a[_i], _ = _b[0], value = _b[1];
+            if (value.group == group) {
+                if (value.type == "job") {
+                    stats.activeJobs += 1;
+                }
+                if (value.type == "machine") {
+                    stats.activeMachines += 1;
+                }
+            }
+        }
+        originatingSocket.emit(interfaces_1.MessageProtocols.STATS, stats);
     };
     Broker.prototype.handleDirectMsg = function (originatingSocket, msg) {
-        if (this.debug)
+        if (this.debug) {
             console.log("".concat(interfaces_1.MessageProtocols.DIRECT, ": ").concat(JSON.stringify(msg)));
-        this.appendToMessagingLog(msg);
+        }
         var errMsg = this.validateMsg(msg);
         if (errMsg) {
             originatingSocket.emit(interfaces_1.MessageProtocols.MESSAGE_ERROR, errMsg);
@@ -216,29 +249,41 @@ var Broker = /** @class */ (function () {
         }
         if (!(msg.toId in this.socketBook)) {
             if (this.debug)
-                console.log("p2p: no agent with this id");
+                console.log("".concat(interfaces_1.MessageProtocols.DIRECT, ": no agent with this id"));
             originatingSocket.emit(interfaces_1.MessageProtocols.MESSAGE_ERROR, "No agent with this id");
             return;
         }
         this.socketBook[msg.toId].socket.emit(interfaces_1.MessageProtocols.DIRECT, msg);
+        this.appendToMessagingLog(msg, originatingSocket);
         return;
     };
     Broker.prototype.handleAllMessage = function (originatingSocket, msg, protocol) {
         if (this.debug)
             console.log("".concat(protocol, ": ").concat(JSON.stringify(msg)));
-        this.appendToMessagingLog(msg);
         var errMsg = this.validateMsg(msg);
         if (errMsg) {
             originatingSocket.emit(interfaces_1.MessageProtocols.MESSAGE_ERROR, errMsg);
             return;
         }
+        var type = "";
+        if (protocol == interfaces_1.MessageProtocols.ALL_JOBS) {
+            type = "job";
+        }
+        if (protocol == interfaces_1.MessageProtocols.ALL_MACHINES) {
+            type = "machine";
+        }
+        var group = originatingSocket.handshake.headers["group-key"];
         for (var _i = 0, _a = Object.entries(this.socketBook); _i < _a.length; _i++) {
             var _b = _a[_i], _ = _b[0], value = _b[1];
             // make sure it is the right type and not itself.
-            if (value.type == protocol && value.socket.id != originatingSocket.id) {
+            if (value.type == type &&
+                value.socket.id != originatingSocket.id &&
+                value.group == group) {
+                console.log("Sending on the message");
                 value.socket.emit(protocol, msg);
             }
         }
+        this.appendToMessagingLog(msg, originatingSocket);
     };
     Broker.prototype.validateMsg = function (msg) {
         // 1. validate message form
@@ -272,10 +317,20 @@ var Broker = /** @class */ (function () {
      * Append to the messaging log both with and without gcode.
      * @param msg
      */
-    Broker.prototype.appendToMessagingLog = function (msg) {
+    Broker.prototype.appendToMessagingLog = function (msg, socket) {
         var messagingFilePath = "".concat(this.logFolderPath, "/messaging.log");
+        var groupKey = "";
+        if (typeof socket.handshake.headers["group-key"] == "string") {
+            groupKey = socket.handshake.headers["group-key"];
+        }
+        var agentType = "";
+        if (typeof socket.handshake.headers["agent-type"] == "string") {
+            agentType = socket.handshake.headers["agent-type"];
+        }
         var entry = {
             sessionUuid: this.sessionUuid,
+            groupKey: groupKey,
+            fromAgentType: agentType,
             msg: msg,
             date: new Date()
         };

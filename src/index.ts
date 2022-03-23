@@ -52,6 +52,9 @@ export class Broker {
 	io: SocketServer = new SocketServer(this.httpServer, {
 		path: "/socket/",
 		maxHttpBufferSize: 1e8, // 100MB
+		cors: {
+			origin: "*",
+		},
 	})
 
 	/**

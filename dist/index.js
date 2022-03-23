@@ -64,7 +64,10 @@ var Broker = /** @class */ (function () {
          */
         this.io = new socket_io_1.Server(this.httpServer, {
             path: "/socket/",
-            maxHttpBufferSize: 1e8
+            maxHttpBufferSize: 1e8,
+            cors: {
+                origin: "*"
+            }
         });
         this.accessLogsKey = config.accessLogsKey;
         this.logFolderPath = config.logFolderPath;

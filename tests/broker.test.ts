@@ -129,7 +129,6 @@ test(`Test wrong toId`, async () => {
 	s.close()
 })
 
-
 test(`Test send to all machines`, async () => {
 	const job = io("http://localhost:3000", {
 		auth: {

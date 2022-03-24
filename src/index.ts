@@ -3,6 +3,7 @@ import { appendFile, existsSync, mkdirSync, writeFileSync } from "fs"
 import { createServer, Server as HttpServer } from "http"
 import { Server as SocketServer, Socket } from "socket.io"
 import { v4 as uuidv4 } from "uuid"
+import * as yargs from "yargs"
 import {
 	BrokerConfig,
 	BrokerLogEntry,
@@ -387,4 +388,32 @@ export class Broker {
 			}
 		)
 	}
+}
+
+if (require.main === module) {
+	console.log("Command Line Runtime")
+	let args = yargs
+		.option("socket-key", {
+			alias: "sk",
+			demand: true,
+		})
+		.option("log-path", {
+			alias: "lp",
+			demand: true,
+		})
+		.option("log-key", {
+			alias: "lk",
+			demand: true,
+		}).argv
+	//console.log(args)
+	//console.log(args.sk)
+
+	const broker = new Broker({
+		logFolderPath: <string>args.lp,
+		accessLogsKey: <string>args.lk,
+		socketKey: <string>args.sk,
+		debug: false,
+	})
+
+	broker.start()
 }

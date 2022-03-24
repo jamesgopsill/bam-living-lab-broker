@@ -1,0 +1,14 @@
+version: "3.7"
+
+services:
+  broker:
+    image: node:16
+    ports: 
+      - 80:80
+    volumes:
+      - ./tmp/logs:/app/logs
+    command: > 
+      bash -c "cd /app &&
+      yarn add https://github.com/jamesgopsill/bam-living-lab-broker &&
+      yarn run @jamesgopsill/bam-living-lab-broker --sk socket-key --lk log-key --lp /app/logs"
+

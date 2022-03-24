@@ -10,5 +10,5 @@ services:
     command: > 
       bash -c "cd /app &&
       yarn add https://github.com/jamesgopsill/bam-living-lab-broker &&
-      yarn run bam-living-lab-broker --sk socket-key --lk log-key --lp /app/logs"
+      node node_modules/@jamesgopsill/bam-living-lab-broker/dist --sk socket-key --lk log-key --lp /app/logs"
 

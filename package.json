@@ -2,10 +2,6 @@
 	"name": "@jamesgopsill/bam-living-lab-broker",
 	"version": "0.1.0",
 	"main": "dist/index.js",
-	"bin": {
-		"@jamesgopsill/bam-living-lab-broker": "dist/index.js",
-		"bam-living-lab-broker": "dist/index.js"
-	},
 	"author": "James Gopsill",
 	"license": "MIT",
 	"private": false,

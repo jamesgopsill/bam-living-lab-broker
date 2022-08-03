@@ -21,19 +21,21 @@
 	],
 	"scripts": {
 		"start": "ts-node src/index.ts",
-		"build": "tsc",
+		"build:app": "tsc",
 		"format": "prettier --write src/**/*",
 		"test": "jest --runInBand",
-		"docs": "typedoc",
-		"pre-add": "yarn format && yarn docs && node utils/clean-dist.js && yarn tsc && node utils/crlf-to-lf.js",
-		"example-imported": "ts-node example/index.ts",
-		"example-cli": "ts-node src --sk socket-key --lk log-key --lp ./tmp"
+		"build:docs": "typedoc",
+		"pre-add": "pnpm format && pnpm build:docs && node utils/clean-dist.mjs && pnpm tsc && node utils/crlf-to-lf.mjs",
+		"example:imported": "ts-node example/index.ts",
+		"example:cli": "ts-node src --sk socket-key --lk log-key --lp ./tmp"
 	},
 	"devDependencies": {
 		"@types/express": "^4.17.13",
 		"@types/jest": "^27.0.2",
+		"@types/node": "^18.6.3",
 		"@types/node-fetch": "2",
 		"@types/uuid": "^8.3.4",
+		"glob": "^8.0.3",
 		"jest": "^27.3.1",
 		"prettier": "^2.5.0",
 		"prettier-plugin-organize-imports": "^2.3.4",

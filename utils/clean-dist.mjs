@@ -1,4 +1,5 @@
-const fs = require("fs")
+import fs from "fs"
+
 const dir = "./dist"
 
 // Clear the dist directory

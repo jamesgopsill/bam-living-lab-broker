@@ -2,13 +2,18 @@ version: "3.7"
 
 services:
   broker:
-    image: node:16
+    image: node:18
     ports: 
       - 3000:80
     volumes:
       - ./tmp/logs:/app/logs
+    environment:
+      - DEBUG=
+      - SOCKET_TOKEN=
+      - LOG_TOKEN=
+      - STATIC_FILES_DIR=
     command: > 
       bash -c "cd /app &&
       yarn add https://github.com/jamesgopsill/bam-living-lab-broker &&
-      node node_modules/@jamesgopsill/bam-living-lab-broker/dist --sk socket-key --lk log-key --lp /app/logs"
+      node node_modules/@jamesgopsill/bam-living-lab-broker/dist"
 

@@ -4,4 +4,7 @@ export let appConfig = {
 	logToken: "test",
 	staticFilesDir: "__tests__/tmp",
 	sessionUuid: "",
+	ssl: false,
+	email: "",
+	sslMode: "staging",
 }

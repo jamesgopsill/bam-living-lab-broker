@@ -1,5 +1,7 @@
+import acme from "acme-client"
 import Koa from "koa"
-import http from "node:http"
+import type { Http2Server } from "node:http2"
+import http2 from "node:http2"
 import { Server as Io } from "socket.io"
 import { v4 as uuidv4 } from "uuid"
 import { appConfig } from "./config"
@@ -16,6 +18,12 @@ if (!process.env.DEBUG) {
 	console.log("DEBUG on")
 } else {
 	appConfig.debug = process.env.DEBUG === "true"
+}
+if (process.env.SSL && process.env.EMAIL && process.env.SSL_MODE) {
+	console.log("SSL on")
+	appConfig.ssl = process.env.SSL === "true"
+	appConfig.email = process.env.EMAIL
+	appConfig.sslMode = process.env.SSL_MODE
 }
 if (!process.env.LOG_TOKEN) {
 	console.log("Using default log token. Should only be used for testing.")
@@ -40,7 +48,28 @@ appendToBrokerLog("Broker starting")
 // Initialising the app
 
 const koa = new Koa()
-export const app = http.createServer(koa.callback())
+export let app: Http2Server
+//TODO: Classic Top-Level Await Issue
+if (appConfig.ssl) {
+	const fpath = `${appConfig.staticFilesDir}/${appConfig.sslMode}.json`
+
+	const [certificateKey, certificateRequest] = await acme.crypto.createCsr({
+		commonName: "test.example.com",
+	})
+
+	const certificate = await client.auto({
+		csr: certificateRequest,
+		email: "test@example.com",
+		termsOfServiceAgreed: true,
+		preferredChain: "DST Root CA X3",
+		challengeCreateFn: async () => {},
+		challengeRemoveFn: async () => {},
+	})
+
+	app = http2.createServer(koa.callback())
+} else {
+	app = http2.createServer(koa.callback())
+}
 const ioConfig = {
 	path: "/socket/",
 	maxHttpBufferSize: 1e8, // 100MB

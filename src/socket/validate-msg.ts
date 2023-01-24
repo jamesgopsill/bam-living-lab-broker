@@ -1,6 +1,6 @@
 import type { JSONSchemaType } from "ajv"
 import Ajv from "ajv"
-import type { AllMessage, DirectMessage } from "../descriptors/interfaces"
+import type { AllMessage, DirectMessage } from "../definitions/interfaces"
 
 const allMsgSchema: JSONSchemaType<AllMessage> = {
 	type: "object",

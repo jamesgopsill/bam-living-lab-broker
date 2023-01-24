@@ -1,94 +1,118 @@
 import acme from "acme-client"
-import Koa from "koa"
-import type { Http2Server } from "node:http2"
-import http2 from "node:http2"
-import { Server as Io } from "socket.io"
+import https from "node:https"
+import type { Server as HttpsServer } from "node:https"
+import http from "node:http"
+import type { Server as HttpServer } from "node:http"
+import { Server as IoServer } from "socket.io"
 import { v4 as uuidv4 } from "uuid"
-import { appConfig } from "./config"
-import { IoServerEvents } from "./descriptors/enums"
-import { appendToBrokerLog, router as logRouter } from "./routers/log"
-import { router as pingRouter } from "./routers/ping"
+import { IoServerEvents } from "./definitions/enums"
+import { appendToBrokerLog } from "./routers/log"
 import { auth } from "./socket/auth"
 import { connection } from "./socket/connection"
 import { contractSaveInterval } from "./socket/contracts"
+import { koa } from "./koa"
+import { existsSync, readFileSync, writeFile } from "node:fs"
+import { loadContracts } from "./socket/contracts"
 
-// Checking env vars
-
-if (!process.env.DEBUG) {
-	console.log("DEBUG on")
-} else {
-	appConfig.debug = process.env.DEBUG === "true"
-}
-if (process.env.SSL && process.env.EMAIL && process.env.SSL_MODE) {
-	console.log("SSL on")
-	appConfig.ssl = process.env.SSL === "true"
-	appConfig.email = process.env.EMAIL
-	appConfig.sslMode = process.env.SSL_MODE
-}
-if (!process.env.LOG_TOKEN) {
-	console.log("Using default log token. Should only be used for testing.")
-} else {
-	appConfig.logToken = process.env.LOG_TOKEN
-}
-if (!process.env.SOCKET_TOKEN) {
-	console.log("Using default socket token. Should only be used for testing.")
-} else {
-	appConfig.socketToken = process.env.SOCKET_TOKEN
-}
-if (!process.env.STATIC_FILES_DIR) {
-	console.log("Using default log dir. Should only be used for testing.")
-} else {
-	appConfig.staticFilesDir = process.env.STATIC_FILES_DIR
+export interface AppOptions {
+	debug: boolean 
+	ssl: boolean
+	email: string
+	sslMode: string
+	logToken: string
+	socketToken: string
+	staticFilesDir: string
+	domain: string
+	sessionUuid: string
 }
 
-appConfig.sessionUuid = uuidv4()
+export let app: HttpServer | HttpsServer
+export let io: IoServer
+export let appConfig: AppOptions = {
+	debug: true,
+	socketToken: "test",
+	logToken: "test",
+	staticFilesDir: "",
+	sessionUuid: "",
+	ssl: false,
+	email: "",
+	sslMode: "staging",
+	domain: ""
+}
 
-appendToBrokerLog("Broker starting")
+export const createApp = async (opts: AppOptions) => {
 
-// Initialising the app
+	appConfig.debug = opts.debug
+	appConfig.ssl = opts.ssl
+	appConfig.email = opts.email
+	appConfig.sslMode = opts.sslMode
+	appConfig.logToken = opts.logToken
+	appConfig.socketToken = opts.socketToken
+	appConfig.staticFilesDir = opts.staticFilesDir
+	appConfig.sessionUuid = uuidv4()
+	appConfig.domain = opts.domain
 
-const koa = new Koa()
-export let app: Http2Server
-//TODO: Classic Top-Level Await Issue
-if (appConfig.ssl) {
-	const fpath = `${appConfig.staticFilesDir}/${appConfig.sslMode}.json`
+	appendToBrokerLog("Broker starting")
 
-	const [certificateKey, certificateRequest] = await acme.crypto.createCsr({
-		commonName: "test.example.com",
+	// Handling HTTPS
+	const sslFile = `${appConfig.staticFilesDir}/${appConfig.sslMode}.json`
+	if (appConfig.ssl && existsSync(sslFile)) {
+		const certInfo = JSON.parse(readFileSync(sslFile, "utf-8"))
+		app = https.createServer(certInfo, koa.callback())
+	}
+
+	if (appConfig.ssl && !existsSync(sslFile)) {
+		/* Init client */
+		const client = new acme.Client({
+			directoryUrl: acme.directory.letsencrypt.staging,
+			accountKey: await acme.crypto.createPrivateKey()
+		})
+	
+		/* Create CSR */
+		const [key, csr] = await acme.crypto.createCsr({
+			commonName: appConfig.domain
+		})
+	
+		/* Certificate */
+		const cert = await client.auto({
+			csr: csr,
+			email: appConfig.email,
+			termsOfServiceAgreed: true,
+			challengeCreateFn: async () => {},
+			challengeRemoveFn: async () => {}
+		})
+
+		const certInfo = {
+			key,
+			cert
+		}
+
+		app = https.createServer(certInfo, koa.callback())
+		writeFile(sslFile, JSON.stringify(certInfo), {
+			encoding: "utf-8"}, () => {})
+	}
+
+	if (!appConfig.ssl) {
+		app = http.createServer(koa.callback())
+	}
+
+	const ioConfig = {
+		path: "/socket/",
+		maxHttpBufferSize: 1e8, // 100MB
+		cors: {
+			origin: "*",
+		},
+	}
+	io = new IoServer(app, ioConfig)
+
+	io.use(auth)
+	io.on(IoServerEvents.CONNECTION, connection)
+
+	loadContracts()
+
+	app.on("close", () => {
+		clearInterval(contractSaveInterval)
 	})
 
-	const certificate = await client.auto({
-		csr: certificateRequest,
-		email: "test@example.com",
-		termsOfServiceAgreed: true,
-		preferredChain: "DST Root CA X3",
-		challengeCreateFn: async () => {},
-		challengeRemoveFn: async () => {},
-	})
-
-	app = http2.createServer(koa.callback())
-} else {
-	app = http2.createServer(koa.callback())
+	return app
 }
-const ioConfig = {
-	path: "/socket/",
-	maxHttpBufferSize: 1e8, // 100MB
-	cors: {
-		origin: "*",
-	},
-}
-export const io = new Io(app, ioConfig)
-
-// Configuring the app
-
-koa.use(pingRouter.routes())
-koa.use(pingRouter.allowedMethods())
-koa.use(logRouter.routes())
-koa.use(logRouter.allowedMethods())
-
-io.use(auth)
-io.on(IoServerEvents.CONNECTION, connection)
-
-app.on("close", () => {
-	clearInterval(contractSaveInterval)
-})

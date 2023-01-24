@@ -1,4 +1,4 @@
-import { appConfig } from "../config"
+import { appConfig } from "../app"
 
 export const auth = (socket: any, next: any) => {
 	if (!socket.handshake.auth.token) {

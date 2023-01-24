@@ -1,14 +1,14 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.connection = void 0;
-const config_1 = require("../config");
-const enums_1 = require("../descriptors/enums");
+const app_1 = require("../app");
+const enums_1 = require("../definitions/enums");
 const all_jobs_msg_1 = require("./all-jobs-msg");
 const all_machines_msg_1 = require("./all-machines-msg");
 const direct_msg_1 = require("./direct-msg");
 const disconnect_1 = require("./disconnect");
 const connection = (socket) => {
-    if (config_1.appConfig.debug)
+    if (app_1.appConfig.debug)
         console.log(`new-connection: ${socket.id}`);
     const agentType = socket.handshake.headers["agent-type"];
     if (typeof agentType == "string") {

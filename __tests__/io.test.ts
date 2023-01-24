@@ -1,8 +1,9 @@
 import { io } from "socket.io-client"
-import { app } from "../src/app"
-import { SocketEvents } from "../src/descriptors/enums"
-import { AllMessage, DirectMessage } from "../src/descriptors/interfaces"
-import { allJobsMsg } from "../src/socket/all-jobs-msg"
+import { createApp } from "../src/app"
+import type { AppOptions } from "../src/app"
+import { SocketEvents } from "../src/definitions/enums"
+import { AllMessage, DirectMessage } from "../src/definitions/interfaces"
+import { v4 as uuidv4 } from "uuid"
 
 let server: any
 const url = "http://localhost:3000"
@@ -33,6 +34,18 @@ const jobAgentConfig = {
 const wait = (ms: number) => new Promise((r, j) => setTimeout(r, ms))
 
 beforeAll(async () => {
+	const opts: AppOptions = {
+		ssl: false,
+		debug: true,
+		sslMode: "",
+		staticFilesDir: `${__dirname}/tmp`,
+		logToken: "test",
+		socketToken: "test",
+		email: "",
+		domain: "",
+		sessionUuid: uuidv4(),
+	}
+	const app = await createApp(opts)
 	server = app.listen(3000)
 })
 

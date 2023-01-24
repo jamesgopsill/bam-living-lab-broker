@@ -1,7 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.auth = void 0;
-const config_1 = require("../config");
+const app_1 = require("../app");
 const auth = (socket, next) => {
     if (!socket.handshake.auth.token) {
         const err = new Error("No authorisation token provided");
@@ -16,7 +16,7 @@ const auth = (socket, next) => {
         next(err);
     }
     const token = socket.handshake.auth.token;
-    if (token != config_1.appConfig.socketToken) {
+    if (token != app_1.appConfig.socketToken) {
         const err = new Error("Not authorised");
         next(err);
     }

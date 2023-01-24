@@ -1,17 +1,20 @@
 import { existsSync, readFileSync, writeFile } from "node:fs"
 import type { Socket } from "socket.io"
-import { appConfig } from "../config"
-import { Logs, SocketEvents } from "../descriptors/enums"
+import { appConfig } from "../app"
+import { Logs, SocketEvents } from "../definitions/enums"
 import type {
 	ContractEntry,
 	Contracts,
 	PostContractMessage,
-} from "../descriptors/interfaces"
+} from "../definitions/interfaces"
 
-let contracts: Contracts = {}
-const contractsFile = `${appConfig.staticFilesDir}/${Logs.CONTRACTS}`
-if (existsSync(contractsFile)) {
-	contracts = JSON.parse(readFileSync(contractsFile, "utf8"))
+export let contracts: Contracts = {}
+
+export const loadContracts = () => {
+	const contractsFile = `${appConfig.staticFilesDir}/${Logs.CONTRACTS}`
+	if (existsSync(contractsFile)) {
+		contracts = JSON.parse(readFileSync(contractsFile, "utf8"))
+	}
 }
 
 export function postContract(this: Socket, msg: PostContractMessage) {
@@ -41,7 +44,15 @@ export function getContract(this: Socket, id: string) {
  */
 export const contractSaveInterval = setInterval(() => {
 	console.log("Saving Contracts")
-	writeFile(contractsFile, JSON.stringify(contracts), (err) => {
-		if (err) console.log(err)
-	})
+	const contractsFile = `${appConfig.staticFilesDir}/${Logs.CONTRACTS}`
+	writeFile(
+		contractsFile,
+		JSON.stringify(contracts),
+		{
+			encoding: "utf-8",
+		},
+		(err) => {
+			if (err) console.log(err)
+		}
+	)
 }, 10000)

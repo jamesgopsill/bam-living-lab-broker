@@ -1,33 +1,21 @@
 import Router from "@koa/router"
-import { appendFile, existsSync, mkdirSync, writeFileSync } from "fs"
+import { appendFile } from "fs"
 import send from "koa-send"
 import type { Socket } from "socket.io"
-import { appConfig } from "../config"
-import { Logs } from "../descriptors/enums"
+import { appConfig } from "../app"
+import { Logs } from "../definitions/enums"
 import type {
 	AllMessage,
 	BrokerLogEntry,
 	DirectMessage,
 	MessagingLogEntry,
-} from "../descriptors/interfaces"
+} from "../definitions/interfaces"
 
 const logFileNames: string[] = [
 	Logs.BROKER,
 	Logs.MESSAGING,
 	Logs.MESSAGING_NO_GCODE,
 ]
-for (const fname of logFileNames) {
-	const fullPath = `${appConfig.staticFilesDir}/${fname}`
-	if (!existsSync(fullPath)) {
-		if (!existsSync(appConfig.staticFilesDir)) {
-			mkdirSync(appConfig.staticFilesDir)
-		}
-		writeFileSync(fullPath, "")
-	}
-}
-const brokerLogFilePath = `${appConfig.staticFilesDir}/${Logs.BROKER}`
-const messagingFilePath = `${appConfig.staticFilesDir}/${Logs.MESSAGING}`
-const messagingNoGcodeFilePath = `${appConfig.staticFilesDir}/${Logs.MESSAGING_NO_GCODE}`
 
 export const router = new Router()
 
@@ -49,8 +37,10 @@ router.get("/logs/:fname", async (ctx, _) => {
 		ctx.throw(404, "File does not exist")
 	}
 
-	const relpath = `${appConfig.staticFilesDir}/${ctx.params.fname}`
-	await send(ctx, relpath)
+	const abspath = `${appConfig.staticFilesDir}/${ctx.params.fname}`
+	await send(ctx, abspath, {
+		root: "/",
+	})
 })
 
 export const appendToMessagingLog = (
@@ -74,9 +64,16 @@ export const appendToMessagingLog = (
 		msg: msg,
 		date: new Date(),
 	}
-	appendFile(messagingFilePath, JSON.stringify(entry) + "\n", (err) => {
-		if (err) console.log(err)
-	})
+
+	const messagingFilePath = `${appConfig.staticFilesDir}/${Logs.MESSAGING}`
+	appendFile(
+		messagingFilePath,
+		JSON.stringify(entry) + "\n",
+		{ encoding: "utf-8" },
+		(err) => {
+			if (err) console.log(err)
+		}
+	)
 
 	//@ts-ignore
 	if (msg.body && msg.body.gcode) {
@@ -84,9 +81,15 @@ export const appendToMessagingLog = (
 		entry.msg.body.gcode = ""
 	}
 
-	appendFile(messagingNoGcodeFilePath, JSON.stringify(entry) + "\n", (err) => {
-		if (err) console.log(err)
-	})
+	const messagingNoGcodeFilePath = `${appConfig.staticFilesDir}/${Logs.MESSAGING_NO_GCODE}`
+	appendFile(
+		messagingNoGcodeFilePath,
+		JSON.stringify(entry) + "\n",
+		{ encoding: "utf-8" },
+		(err) => {
+			if (err) console.log(err)
+		}
+	)
 }
 
 export const appendToBrokerLog = (msg: string) => {
@@ -95,7 +98,13 @@ export const appendToBrokerLog = (msg: string) => {
 		date: new Date(),
 		msg: msg,
 	}
-	appendFile(brokerLogFilePath, JSON.stringify(entry) + "\n", (err) => {
-		if (err) console.log(err)
-	})
+	const brokerLogFilePath = `${appConfig.staticFilesDir}/${Logs.BROKER}`
+	appendFile(
+		brokerLogFilePath,
+		JSON.stringify(entry) + "\n",
+		{ encoding: "utf-8" },
+		(err) => {
+			if (err) console.log(err)
+		}
+	)
 }

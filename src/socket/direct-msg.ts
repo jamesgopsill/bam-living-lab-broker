@@ -1,7 +1,7 @@
 import type { Socket } from "socket.io"
 import { io } from "../app"
-import { appConfig } from "../config"
-import { SocketEvents } from "../descriptors/enums"
+import { appConfig } from "../app"
+import { SocketEvents } from "../definitions/enums"
 import { appendToMessagingLog } from "../routers/log"
 import { validateDirectMsg } from "./validate-msg"
 

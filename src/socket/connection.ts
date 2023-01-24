@@ -1,6 +1,6 @@
 import type { Socket } from "socket.io"
-import { appConfig } from "../config"
-import { SocketEvents } from "../descriptors/enums"
+import { appConfig } from "../app"
+import { SocketEvents } from "../definitions/enums"
 import { allJobsMsg } from "./all-jobs-msg"
 import { allMachinesMsg } from "./all-machines-msg"
 import { directMsg } from "./direct-msg"

@@ -1,21 +1,21 @@
 import acme from "acme-client"
-import https from "node:https"
-import type { Server as HttpsServer } from "node:https"
-import http from "node:http"
+import { existsSync, readFileSync, writeFile } from "node:fs"
 import type { Server as HttpServer } from "node:http"
+import http from "node:http"
+import type { Server as HttpsServer } from "node:https"
+import https from "node:https"
+import selfsigned from "selfsigned"
 import { Server as IoServer } from "socket.io"
 import { v4 as uuidv4 } from "uuid"
 import { IoServerEvents } from "./definitions/enums"
+import { koa } from "./koa"
 import { appendToBrokerLog } from "./routers/log"
 import { auth } from "./socket/auth"
 import { connection } from "./socket/connection"
-import { contractSaveInterval } from "./socket/contracts"
-import { koa } from "./koa"
-import { existsSync, readFileSync, writeFile } from "node:fs"
-import { loadContracts } from "./socket/contracts"
+import { contractSaveInterval, loadContracts } from "./socket/contracts"
 
 export interface AppOptions {
-	debug: boolean 
+	debug: boolean
 	ssl: boolean
 	email: string
 	sslMode: string
@@ -37,11 +37,10 @@ export let appConfig: AppOptions = {
 	ssl: false,
 	email: "",
 	sslMode: "staging",
-	domain: ""
+	domain: "",
 }
 
 export const createApp = async (opts: AppOptions) => {
-
 	appConfig.debug = opts.debug
 	appConfig.ssl = opts.ssl
 	appConfig.email = opts.email
@@ -61,35 +60,69 @@ export const createApp = async (opts: AppOptions) => {
 		app = https.createServer(certInfo, koa.callback())
 	}
 
-	if (appConfig.ssl && !existsSync(sslFile)) {
+	if (
+		appConfig.ssl &&
+		["staging", "production"].includes(appConfig.sslMode) &&
+		!existsSync(sslFile)
+	) {
 		/* Init client */
 		const client = new acme.Client({
 			directoryUrl: acme.directory.letsencrypt.staging,
-			accountKey: await acme.crypto.createPrivateKey()
+			accountKey: await acme.crypto.createPrivateKey(),
 		})
-	
+
 		/* Create CSR */
 		const [key, csr] = await acme.crypto.createCsr({
-			commonName: appConfig.domain
+			commonName: appConfig.domain,
 		})
-	
+
 		/* Certificate */
 		const cert = await client.auto({
 			csr: csr,
 			email: appConfig.email,
 			termsOfServiceAgreed: true,
 			challengeCreateFn: async () => {},
-			challengeRemoveFn: async () => {}
+			challengeRemoveFn: async () => {},
 		})
 
 		const certInfo = {
 			key,
-			cert
+			cert,
 		}
 
 		app = https.createServer(certInfo, koa.callback())
-		writeFile(sslFile, JSON.stringify(certInfo), {
-			encoding: "utf-8"}, () => {})
+		writeFile(
+			sslFile,
+			JSON.stringify(certInfo),
+			{
+				encoding: "utf-8",
+			},
+			() => {}
+		)
+	}
+
+	if (appConfig.ssl && appConfig.sslMode === "local" && !existsSync(sslFile)) {
+		const attrs = [
+			{
+				name: "commonName",
+				value: "localhost",
+			},
+		]
+		const pems = selfsigned.generate(attrs, { days: 365 })
+		const certInfo = {
+			key: pems.private,
+			cert: pems.cert,
+		}
+		console.log(certInfo)
+		app = https.createServer(certInfo, koa.callback())
+		writeFile(
+			sslFile,
+			JSON.stringify(certInfo),
+			{
+				encoding: "utf-8",
+			},
+			() => {}
+		)
 	}
 
 	if (!appConfig.ssl) {
@@ -112,6 +145,11 @@ export const createApp = async (opts: AppOptions) => {
 
 	app.on("close", () => {
 		clearInterval(contractSaveInterval)
+	})
+
+	process.on("SIGINT", () => {
+		console.log("SIGINT called")
+		app.close()
 	})
 
 	return app

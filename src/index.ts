@@ -1,8 +1,9 @@
-import { createApp } from "./app"
-import type { AppOptions } from "./app"
 import { v4 as uuidv4 } from "uuid"
+import type { AppOptions } from "./app"
+import { createApp } from "./app"
 
 const main = async () => {
+	/*
 	let opts: AppOptions = {
 		debug: process.env.BAM_DEBUG === "true",
 		ssl: process.env.BAM_SSL === "true",
@@ -14,15 +15,27 @@ const main = async () => {
 		domain: process.env.BAM_DOMAIN || "",
 		sessionUuid: uuidv4(),
 	}
-	
+	*/
+	let opts: AppOptions = {
+		debug: true,
+		ssl: true,
+		sslMode: "local",
+		email: "",
+		logToken: "test",
+		socketToken: "test",
+		staticFilesDir: "__tests__/tmp",
+		domain: "",
+		sessionUuid: uuidv4(),
+	}
+
 	const app = await createApp(opts)
 	if (opts.ssl) {
-		app.listen(443)
+		app.listen(3000)
+		console.log("Gateway running on https://localhost:3000/")
 	} else {
 		app.listen(3000)
+		console.log("Gateway running on http://localhost:3000/")
 	}
-	
-	console.log("Gateway running on http://localhost:3000/")	
 }
 
 main()

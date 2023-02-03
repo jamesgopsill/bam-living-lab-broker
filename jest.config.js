@@ -2,7 +2,7 @@ module.exports = {
 	preset: "ts-jest",
 	testEnvironment: "node",
 	verbose: false,
-	testRegex: "\.test\.ts",
+	testRegex: ".test.ts",
 	roots: ["__tests__"],
 	extensionsToTreatAsEsm: [".ts"],
 	maxWorkers: 1,
@@ -12,7 +12,7 @@ module.exports = {
 		"^.+\\.tsx?$": [
 			"ts-jest",
 			{
-			// ts-jest configuration goes here
+				// ts-jest configuration goes here
 			},
 		],
 	},

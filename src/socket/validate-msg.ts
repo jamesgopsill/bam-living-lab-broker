@@ -14,8 +14,11 @@ const allMsgSchema: JSONSchemaType<AllMessage> = {
 		body: {
 			type: "object",
 		},
+		extra: {
+			type: "object",
+		},
 	},
-	required: ["from", "subject", "body"],
+	required: ["from", "subject", "body", "extra"],
 	additionalProperties: false,
 }
 
@@ -34,8 +37,11 @@ const directMsgSchema: JSONSchemaType<DirectMessage> = {
 		body: {
 			type: "object",
 		},
+		extra: {
+			type: "object",
+		},
 	},
-	required: ["from", "to", "subject", "body"],
+	required: ["from", "to", "subject", "body", "extra"],
 	additionalProperties: false,
 }
 

@@ -2,6 +2,7 @@ export interface AllMessage {
 	from: string
 	subject: string
 	body: {}
+	extra: {}
 }
 
 export interface DirectMessage extends AllMessage {

@@ -3,9 +3,9 @@ version: "3.7"
 services:
   broker:
     image: node:18
-    ports: 
+    ports:
       - 443:443 # For SSL services
-      - 3000:80  # For no SSL dev work
+      - 3000:80 # For no SSL dev work
     volumes:
       # Mapping volume to host
       - ./tmp/data:/app/data
@@ -18,8 +18,7 @@ services:
       - BAM_LOG_TOKEN=
       - BAM_SOCKET_TOKEN=
       - BAM_STATIC_FILES_DIR=/app/data # Absolute path
-    command: > 
+    command: >
       bash -c "cd /app &&
       yarn add https://github.com/jamesgopsill/bam-living-lab-broker &&
       node node_modules/@jamesgopsill/bam-living-lab-broker/dist"
-

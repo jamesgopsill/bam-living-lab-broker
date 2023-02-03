@@ -3,7 +3,6 @@ import type { AppOptions } from "./app"
 import { createApp } from "./app"
 
 const main = async () => {
-	/*
 	let opts: AppOptions = {
 		debug: process.env.BAM_DEBUG === "true",
 		ssl: process.env.BAM_SSL === "true",
@@ -13,18 +12,6 @@ const main = async () => {
 		socketToken: process.env.BAM_SOCKET_TOKEN || "",
 		staticFilesDir: process.env.BAM_STATIC_FILES_DIR || "",
 		domain: process.env.BAM_DOMAIN || "",
-		sessionUuid: uuidv4(),
-	}
-	*/
-	let opts: AppOptions = {
-		debug: true,
-		ssl: true,
-		sslMode: "local",
-		email: "",
-		logToken: "test",
-		socketToken: "test",
-		staticFilesDir: "__tests__/tmp",
-		domain: "",
 		sessionUuid: uuidv4(),
 	}
 

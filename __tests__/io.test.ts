@@ -1,9 +1,9 @@
 import { io } from "socket.io-client"
-import { createApp } from "../src/app"
+import { v4 as uuidv4 } from "uuid"
 import type { AppOptions } from "../src/app"
+import { createApp } from "../src/app"
 import { SocketEvents } from "../src/definitions/enums"
 import { AllMessage, DirectMessage } from "../src/definitions/interfaces"
-import { v4 as uuidv4 } from "uuid"
 
 let server: any
 const url = "http://localhost:3000"
@@ -139,6 +139,7 @@ test(`Test wrong toId (broker will not respond)`, async () => {
 				to: "some-random-id",
 				subject: "test-message",
 				body: {},
+				extra: {},
 			}
 			s.emit(SocketEvents.DIRECT, msg)
 		})
@@ -165,6 +166,7 @@ test(`Test send to all machines`, async () => {
 				from: job.id,
 				subject: "test-message-to-all-machines",
 				body: {},
+				extra: {},
 			}
 			job.emit(SocketEvents.ALL_MACHINES, msg)
 		})
@@ -205,6 +207,7 @@ test(`Test send to all jobs`, async () => {
 				from: machine.id,
 				subject: "test-message-to-all-jobs",
 				body: {},
+				extra: {},
 			}
 			machine.emit(SocketEvents.ALL_JOBS, msg)
 		})
@@ -261,6 +264,7 @@ test(`Test send direct message`, async () => {
 				to: machine.id,
 				subject: "test-message-to-a-specific-machine",
 				body: {},
+				extra: {},
 			}
 			job.emit(SocketEvents.DIRECT, msg)
 		})

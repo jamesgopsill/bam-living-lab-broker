@@ -75,9 +75,7 @@ export const appendToMessagingLog = (
 		}
 	)
 
-	//@ts-ignore
-	if (msg.body && msg.body.gcode) {
-		//@ts-ignore
+	if (entry.msg.body && entry.msg.body.gcode) {
 		entry.msg.body.gcode = ""
 	}
 

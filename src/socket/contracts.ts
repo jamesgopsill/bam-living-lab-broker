@@ -18,6 +18,10 @@ export const loadContracts = () => {
 }
 
 export function postContract(this: Socket, msg: PostContractMessage) {
+	if (appConfig.debug) {
+		console.log("New contract information")
+		console.log(msg)
+	}
 	const update: ContractEntry = {
 		id: this.id,
 		msg: msg.msg,
@@ -31,9 +35,12 @@ export function postContract(this: Socket, msg: PostContractMessage) {
 }
 
 export function getContract(this: Socket, id: string) {
+	if (appConfig.debug) console.log(`Getting contract information for ${id}`)
 	if (contracts[id]) {
+		if (appConfig.debug) console.log("Sending contract info back")
 		this.emit(SocketEvents.GET_CONTRACT, contracts[id])
 	} else {
+		if (appConfig.debug) console.log("Sending contract info back")
 		this.emit(SocketEvents.MESSAGE_ERROR, "No contract found")
 	}
 }

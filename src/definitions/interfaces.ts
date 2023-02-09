@@ -1,17 +1,16 @@
 export interface AllMessage {
 	from: string
 	subject: string
-	body: {}
-	extra: {}
+	body: {
+		[k: string]: any
+	}
+	extra: {
+		[k: string]: any
+	}
 }
 
 export interface DirectMessage extends AllMessage {
 	to: string
-}
-
-export interface PostContractMessage {
-	contractId: string
-	msg: string
 }
 
 export interface MessagingLogEntry {
@@ -30,6 +29,11 @@ export interface BrokerLogEntry {
 
 export interface Contracts {
 	[key: string]: [ContractEntry]
+}
+
+export interface PostContractMessage {
+	contractId: string
+	msg: string
 }
 
 export interface ContractEntry {

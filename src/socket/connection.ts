@@ -3,6 +3,7 @@ import { appConfig } from "../app"
 import { SocketEvents } from "../definitions/enums"
 import { allJobsMsg } from "./all-jobs-msg"
 import { allMachinesMsg } from "./all-machines-msg"
+import { getContract, postContract } from "./contracts"
 import { directMsg } from "./direct-msg"
 import { disconnect } from "./disconnect"
 
@@ -20,4 +21,6 @@ export const connection = (socket: Socket) => {
 	socket.on(SocketEvents.ALL_JOBS, allJobsMsg)
 	socket.on(SocketEvents.ALL_MACHINES, allMachinesMsg)
 	socket.on(SocketEvents.DIRECT, directMsg)
+	socket.on(SocketEvents.POST_CONTRACT, postContract)
+	socket.on(SocketEvents.GET_CONTRACT, getContract)
 }

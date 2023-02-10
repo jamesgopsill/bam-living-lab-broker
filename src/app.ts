@@ -72,10 +72,14 @@ export const createApp = async (opts: AppOptions) => {
 			accountKey: await acme.crypto.createPrivateKey(),
 		})
 
+		console.log("Client initialised.")
+
 		/* Create CSR */
 		const [key, csr] = await acme.crypto.createCsr({
 			commonName: appConfig.domain,
 		})
+
+		console.log("Creating cert")
 
 		/* Certificate */
 		const cert = await client.auto({
@@ -94,6 +98,7 @@ export const createApp = async (opts: AppOptions) => {
 		}
 
 		if (appConfig.debug) console.log(certInfo)
+		console.log("Adding certificate to server.")
 
 		app = https.createServer(certInfo, koa.callback())
 		writeFile(

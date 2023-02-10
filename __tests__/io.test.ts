@@ -35,14 +35,10 @@ const wait = (ms: number) => new Promise((r, j) => setTimeout(r, ms))
 
 beforeAll(async () => {
 	const opts: AppOptions = {
-		ssl: false,
 		debug: true,
-		sslMode: "",
 		staticFilesDir: `${__dirname}/tmp`,
 		logToken: "test",
 		socketToken: "test",
-		email: "",
-		domain: "",
 		sessionUuid: uuidv4(),
 	}
 	const app = await createApp(opts)

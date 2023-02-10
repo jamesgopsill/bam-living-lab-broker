@@ -1,24 +1,40 @@
 version: "3.7"
 
 services:
-  broker:
-    image: node:19
+  reverse-proxy:
+    image: traefik:v2.6
+    command:
+      - --log.level=DEBUG
+      - --providers.docker
+      - --providers.docker.exposedByDefault=false
+      - --entrypoints.websecure.address=:443
+      - --certificatesresolvers.myresolver.acme.email= # [EMAIL_ADDRESS]
+      - --certificatesresolvers.myresolver.acme.tlschallenge=true
+      - --certificatesresolvers.myresolver.acme.storage=/letsencrypt/acme.json
     ports:
-      - 443:443 # For SSL services
-      - 3000:80 # For no SSL dev work
+      - 443:443
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./letsencrypt:/letsencrypt
+
+  broker:
+    image: broker/bam
+    expose:
+      - 3000
+    build:
+      context: .
+      dockerfile: broker.Dockerfile
     volumes:
       # Mapping volume to host
       - ./data:/app/data
     environment:
       - BAM_DEBUG= # true | false
-      - BAM_SSL= # true | false
-      - BAM_SSL_MODE= # "", "staging", "production"
-      - BAM_DOMAIN=
-      - BAM_EMAIL=
       - BAM_LOG_TOKEN=
       - BAM_SOCKET_TOKEN=
       - BAM_STATIC_FILES_DIR=/app/data # Absolute path
-    command: >
-      bash -c "cd /app &&
-      yarn add https://github.com/jamesgopsill/bam-living-lab-broker &&
-      node node_modules/@jamesgopsill/bam-living-lab-broker/dist"
+    labels:
+      - traefik.enable.true
+      - traefik.http.routers.broker.rule=Host(`[URL]`) # ADD URL
+      - trafeik.http.routers.broker.entrypoints=websecure
+      - traefik.http.routers.broker.tls=true
+      - traefik.http.routers.broker.tls.certresolver=myresolver

@@ -2,7 +2,7 @@ version: "3.7"
 
 services:
   broker:
-    image: node:18
+    image: node:19
     ports:
       - 443:443 # For SSL services
       - 3000:80 # For no SSL dev work

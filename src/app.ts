@@ -65,6 +65,7 @@ export const createApp = async (opts: AppOptions) => {
 		["staging", "production"].includes(appConfig.sslMode) &&
 		!existsSync(sslFile)
 	) {
+		console.log("Creating SSL certificate with LetEncrypt.")
 		/* Init client */
 		const client = new acme.Client({
 			directoryUrl: acme.directory.letsencrypt.staging,
@@ -85,10 +86,14 @@ export const createApp = async (opts: AppOptions) => {
 			challengeRemoveFn: async () => {},
 		})
 
+		if (appConfig.debug) console.log(cert)
+
 		const certInfo = {
 			key,
 			cert,
 		}
+
+		if (appConfig.debug) console.log(certInfo)
 
 		app = https.createServer(certInfo, koa.callback())
 		writeFile(

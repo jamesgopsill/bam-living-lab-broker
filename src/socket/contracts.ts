@@ -7,6 +7,7 @@ import type {
 	Contracts,
 	PostContractMessage,
 } from "../definitions/interfaces"
+import { validatePostContractMsg } from "./validate-msg"
 
 export let contracts: Contracts = {}
 
@@ -18,24 +19,29 @@ export const loadContracts = () => {
 }
 
 export function postContract(this: Socket, msg: PostContractMessage) {
-	if (appConfig.debug) {
-		console.log("New contract information")
-		console.log(msg)
+	if (appConfig.debug) console.log("postContract", msg)
+	if (!validatePostContractMsg(msg)) {
+		this.emit(SocketEvents.MESSAGE_ERROR, validatePostContractMsg.errors)
+		return
 	}
 	const update: ContractEntry = {
-		id: this.id,
+		from: this.id,
 		msg: msg.msg,
 		date: new Date(),
 	}
-	if (contracts[msg.contractId]) {
-		contracts[msg.contractId].push(update)
+	if (contracts[msg.id]) {
+		contracts[msg.id].push(update)
 	} else {
-		contracts[msg.contractId] = [update]
+		contracts[msg.id] = [update]
 	}
 }
 
 export function getContract(this: Socket, id: string) {
 	if (appConfig.debug) console.log(`Getting contract information for ${id}`)
+	if (typeof id !== "string") {
+		this.emit(SocketEvents.MESSAGE_ERROR, "Requires contract id")
+		return
+	}
 	if (contracts[id]) {
 		if (appConfig.debug) console.log("Sending contract info back")
 		this.emit(SocketEvents.GET_CONTRACT, contracts[id])

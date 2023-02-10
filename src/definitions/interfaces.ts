@@ -32,12 +32,12 @@ export interface Contracts {
 }
 
 export interface PostContractMessage {
-	contractId: string
+	id: string
 	msg: string
 }
 
 export interface ContractEntry {
-	id: string
+	from: string
 	msg: string
 	date: Date
 }

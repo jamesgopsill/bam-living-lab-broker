@@ -149,6 +149,7 @@ export const createApp = async (opts: AppOptions) => {
 
 	process.on("SIGINT", () => {
 		console.log("SIGINT called")
+		io.close()
 		app.close()
 	})
 

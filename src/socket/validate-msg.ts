@@ -1,6 +1,10 @@
 import type { JSONSchemaType } from "ajv"
 import Ajv from "ajv"
-import type { AllMessage, DirectMessage } from "../definitions/interfaces"
+import type {
+	AllMessage,
+	DirectMessage,
+	PostContractMessage,
+} from "../definitions/interfaces"
 
 const allMsgSchema: JSONSchemaType<AllMessage> = {
 	type: "object",
@@ -45,6 +49,21 @@ const directMsgSchema: JSONSchemaType<DirectMessage> = {
 	additionalProperties: false,
 }
 
+const contractMsgSchema: JSONSchemaType<PostContractMessage> = {
+	type: "object",
+	properties: {
+		id: {
+			type: "string",
+		},
+		msg: {
+			type: "string",
+		},
+	},
+	required: ["id", "msg"],
+	additionalProperties: false,
+}
+
 const ajv = new Ajv()
 export const validateDirectMsg = ajv.compile(directMsgSchema)
 export const validateAllMsg = ajv.compile(allMsgSchema)
+export const validatePostContractMsg = ajv.compile(contractMsgSchema)

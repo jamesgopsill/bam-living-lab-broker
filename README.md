@@ -19,10 +19,10 @@ The platform is built using Typescript, is entirely web-based and designed with 
 - **The Broker**. This handles the communication between Machines and Jobs. This repository.
 - **Machine and Job Agents**. These handles the connections and sets the logics for Machines and Jobs to interact with the platform.
 - **Machine Clients**. That provide the connections to the different types of 3D printer. We have built clients for Ultimaker, Octoprint and a direct connection via WebUSB.
-	- [Ultimaker Client](https://github.com/jamesgopsill/ultimaker-client)
-	- [Prusa Client](https://github.com/jamesgopsill/prusa-client)
-	- [Octoprint Client](https://github.com/jamesgopsill/octoprint-client)
-	- [Web Serial](https://github.com/jamesgopsill/svelte-web-serial)
+  - [Ultimaker Client](https://github.com/jamesgopsill/ultimaker-client)
+  - [Prusa Client](https://github.com/jamesgopsill/prusa-client)
+  - [Octoprint Client](https://github.com/jamesgopsill/octoprint-client)
+  - [Web Serial](https://github.com/jamesgopsill/svelte-web-serial)
 - **Living Lab Website**. That brings the agent and client modules together so individual can submit Jobs and add their printers to the service.
 - **Dummy Machine and Job Agents**. Code that can mimic a job and machine for testing purposes and to create a Digital Twin of the service.
 
@@ -62,7 +62,6 @@ In the middle, exists brokered manufacturing where both Machine and Job agents n
 To run an instance of the broker, first clone this repo onto your device.
 One can either use the Command Line Interface (CLI) [In progress], Docker instance or import it into a script.
 
-
 ### Running from a script
 
 An example of a script that instantiates and runs the broker can be found in the `example` folder.
@@ -75,7 +74,7 @@ const config: BrokerConfig = {
 	logFolderPath: "",
 	accessLogsKey: "",
 	socketKey: "",
-	debug: false
+	debug: false,
 }
 
 const broker = new Broker(config)
@@ -102,4 +101,3 @@ If you like this project, please consider sponsoring the developers so they can 
 
 - [J. Gopsill, M. Obi, L. Giunta and M. Goudswaard. “Queueless: Agent-Based Manufacturing for Workshop Production”. Proceedings of the 16th International KES Conference on Agent & Multi-Agent Systems: Technologies & Applications. 2022.](https://link.springer.com/book/9789811933585)
 - [M. Goudswaard, J. Gopsill, A. Ma, A. Nassehi, and B. Hicks. “Responding to rapidly changing product demand through a coordinated additive manufacturing production system: a COVID-19 case study”. In: Proceedings of the Manufacturing Engineering Society International Conference. 2021.](https://iopscience.iop.org/article/10.1088/1757-899X/1193/1/012119/meta)
-

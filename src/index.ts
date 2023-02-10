@@ -17,8 +17,8 @@ const main = async () => {
 
 	const app = await createApp(opts)
 	if (opts.ssl) {
-		app.listen(3000)
-		console.log("Gateway running on https://localhost:3000/")
+		app.listen(443)
+		console.log("Gateway running on https://localhost/")
 	} else {
 		app.listen(3000)
 		console.log("Gateway running on http://localhost:3000/")
